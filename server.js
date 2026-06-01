@@ -205,6 +205,32 @@ app.post('/api/users', async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------
+// Rota para listar TODOS os imóveis
+// ---------------------------------------------------------
+app.get('/api/properties', async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM properties");
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno ao buscar o inventário de imóveis." });
+  }
+});
+
+// ---------------------------------------------------------
+// Rota para listar TODOS os usuários
+// ---------------------------------------------------------
+app.get('/api/users', async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM users");
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno ao buscar a lista de usuários." });
+  }
+});
+
 // --- ROTA: Match Engine (Motor de Ranquamento customizado) ---
 app.get('/api/properties/match/:userId', async (req, res) => {
     const userId = parseInt(req.params.userId);
