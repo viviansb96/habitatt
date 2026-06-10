@@ -188,22 +188,37 @@ app.use(cors());
 // --- ROTA: Submissão do Quiz de Perfil Dinâmico ---
 app.post('/api/users', async (req, res) => {
   try {
+    // 1. Recebe os dados enviados pelo front-end
     const { name, profile } = req.body;
     
-    // O RETURNING * é crucial para o PostgreSQL devolver o ID gerado na hora
+    // 2. Desempacota os dados do perfil (com valores padrão por segurança)
+    const max_budget = profile.maxBudget || 0;
+    const desired_vibe = profile.desiredVibe || 'indiferente';
+    const has_pet = profile.hasPet || false;
+    const min_bedrooms = profile.minBedrooms || 1;
+    const min_bathrooms = profile.minBathrooms || 1;
+    const wants_balcony = profile.wantsBalcony || false;
+    const wants_garage = profile.wantsGarage || false;
+    const wants_yard = profile.wantsYard || false;
+    const property_type = profile.propertyType || 'indiferente';
+
+    // 3. Faz o INSERT mapeando para as colunas exatas do seu banco
+    // O RETURNING * no final é a mágica que devolve o ID para a tela
     const result = await db.query(
-      "INSERT INTO users (name, profile) VALUES ($1, $2) RETURNING *",
-      [name, JSON.stringify(profile)]
+      `INSERT INTO users 
+      (name, max_budget, desired_vibe, has_pet, min_bedrooms, min_bathrooms, wants_balcony, wants_garage, wants_yard, property_type) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+      RETURNING *`,
+      [name, max_budget, desired_vibe, has_pet, min_bedrooms, min_bathrooms, wants_balcony, wants_garage, wants_yard, property_type]
     );
     
-    // Retorna explicitamente a primeira linha gerada (o objeto do usuário completo)
+    // 4. Devolve o usuário criado com o ID novo
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Erro no banco de dados:", err);
     res.status(500).json({ error: "Erro interno ao criar usuário." });
   }
 });
-
 // ---------------------------------------------------------
 // Rota para listar TODOS os imóveis
 // ---------------------------------------------------------
