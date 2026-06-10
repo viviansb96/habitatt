@@ -304,6 +304,21 @@ app.post('/api/favorites', async (req, res) => {
     }
 });
 
+// Rota para REMOVER um imóvel dos favoritos via parâmetros de URL
+app.delete('/api/favorites/:userId/:propertyId', async (req, res) => {
+  try {
+    const { userId, propertyId } = req.params;
+    await db.query(
+      'DELETE FROM favorites WHERE user_id = $1 AND property_id = $2',
+      [userId, propertyId]
+    );
+    res.json({ success: true, message: "Removido dos favoritos com sucesso." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno ao remover favorito." });
+  }
+});
+
 app.get('/api/favorites/:userId', async (req, res) => {
     const userId = parseInt(req.params.userId);
     try {
