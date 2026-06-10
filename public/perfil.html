@@ -51,7 +51,7 @@
         </div>
     </main>
 
-    <script>
+   <script>
         const userId = localStorage.getItem('habitatt_userId');
         document.getElementById('profileName').innerText = localStorage.getItem('habitatt_userName') || 'Usuário Não Identificado';
         document.getElementById('profileId').innerText = userId || 'N/A';
@@ -59,6 +59,19 @@
         function logout() {
             localStorage.clear();
             window.location.href = 'index.html';
+        }
+
+        // FUNÇÃO DE REMOVER CORRIGIDA (Agora está fora da função principal)
+        async function removeFavoriteProfile(propertyId) {
+            try {
+                await fetch('/api/favorites', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: Number(userId), propertyId: propertyId })
+                });
+                // Recarrega a página de perfil para a lista atualizar visualmente
+                loadProfileData(); 
+            } catch (err) { console.error("Erro ao excluir", err); }
         }
 
         async function loadProfileData() {
@@ -85,7 +98,13 @@
                                     <h4>${prop.title}</h4>
                                     <p>R$ ${Number(prop.price).toFixed(2)} | Vibe: ${prop.vibe}</p>
                                 </div>
-                                <button class="btn-primary" style="width: auto; padding: 8px 15px;" onclick="window.location.href='chat.html?propertyId=${prop.id}&title=${encodeURIComponent(prop.title)}'">Ver Chat</button>
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-primary" style="width: auto; padding: 8px 15px;" onclick="window.location.href='chat.html?propertyId=${prop.id}&title=${encodeURIComponent(prop.title)}'">Ver Chat</button>
+                                    
+                                    <button class="btn-primary" style="width: auto; padding: 8px 15px; background: transparent; border: 1px solid #ff4757; color: #ff4757;" onclick="removeFavoriteProfile(${prop.id})">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         `;
                     });

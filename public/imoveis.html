@@ -26,16 +26,29 @@
     const userName = localStorage.getItem('habitatt_userName');
     const urlParams = new URLSearchParams(window.location.search);
     const viewMode = urlParams.get('view') || 'all';
+    
+    let userFavorites = []; // Lista para guardar os IDs dos favoritos
 
-    // Se tentar acessar os matches sem ter passado pelo quiz, redireciona
     if (viewMode === 'match' && (!userId || userId === 'undefined')) {
         alert('Nenhum perfil encontrado. Responda ao quiz para gerar seus matches!');
         window.location.href = 'index.html';
     }
 
     async function loadPage() {
+        // 1. Busca os favoritos do usuário para saber quais corações pintar de vermelho
+        if (userId && userId !== 'undefined') {
+            try {
+                const favRes = await fetch(`/api/users/${userId}/favorites`);
+                if (favRes.ok) {
+                    const favData = await favRes.json();
+                    // Salva apenas os números (IDs) dos imóveis favoritados
+                    userFavorites = favData.map(fav => fav.id); 
+                }
+            } catch (err) { console.error("Erro ao carregar favoritos da nuvem"); }
+        }
+
+        // 2. Busca os imóveis (Todos ou Matches)
         let endpoint = '/api/properties';
-        
         if (viewMode === 'match') {
             endpoint = `/api/properties/match/${userId}`;
             document.getElementById('navMatch').classList.add('active');
@@ -52,7 +65,7 @@
             renderCards(properties);
         } catch (err) {
             console.error(err);
-            document.getElementById('pageTitle').innerText = 'Erro ao carregar os dados da nuvem.';
+            document.getElementById('pageTitle').innerText = 'Erro ao carregar os dados.';
         }
     }
 
@@ -61,13 +74,22 @@
         grid.innerHTML = '';
 
         if (!properties || properties.length === 0) {
-            grid.innerHTML = '<p style="color: var(--text-muted); padding: 20px;">Nenhum imóvel encontrado para os critérios selecionados.</p>';
+            grid.innerHTML = '<p style="color: var(--text-muted); padding: 20px;">Nenhum imóvel encontrado.</p>';
             return;
         }
 
         properties.forEach(prop => {
             const scoreTag = prop.score !== undefined ? `<div class="tag score">⭐ Score: ${prop.score}%</div>` : '';
             const urlSafeTitle = encodeURIComponent(prop.title);
+            
+            // Verifica se o ID deste imóvel está na lista de favoritos
+            const isFav = userFavorites.includes(prop.id);
+            const heartClass = isFav ? 'active' : '';
+            const heartColor = isFav ? 'color: #ff4757;' : 'color: var(--text-muted);';
+
+            // Tratamento de segurança caso o Match não devolva quartos/pets
+            const quartos = prop.bedrooms !== undefined ? prop.bedrooms : '--';
+            const acceptsPet = prop.accepts_pet !== undefined ? prop.accepts_pet : false;
 
             grid.innerHTML += `
                 <div class="property-card">
@@ -76,19 +98,19 @@
                     </div>
                     <div class="property-content">
                         <div class="property-tags">
-                            <div class="tag">${prop.vibe.toUpperCase()}</div>
+                            <div class="tag">${prop.vibe ? prop.vibe.toUpperCase() : 'N/A'}</div>
                             ${scoreTag}
                         </div>
                         <h3>${prop.title}</h3>
                         <p style="color: var(--text-muted); margin-top: 8px;">
-                            ${prop.bedrooms} Quarto(s) • ${prop.accepts_pet ? 'Aceita Pets' : 'Não Aceita Pets'}
+                            ${quartos} Quarto(s) • ${acceptsPet ? 'Aceita Pets' : 'Não Aceita Pets'}
                         </p>
                         <div class="price">R$ ${Number(prop.price).toFixed(2)}</div>
                         <div class="card-actions">
                             <button class="btn-chat" onclick="window.location.href='chat.html?propertyId=${prop.id}&title=${urlSafeTitle}'">
                                 <i class="fa-regular fa-comment"></i> Falar com Locador
                             </button>
-                            <button class="btn-fav" onclick="favoriteProperty(${prop.id}, this)">
+                            <button class="btn-fav ${heartClass}" style="${heartColor}" onclick="toggleFavorite(${prop.id}, this)">
                                 <i class="fa-solid fa-heart"></i>
                             </button>
                         </div>
@@ -98,15 +120,30 @@
         });
     }
 
-    async function favoriteProperty(id, btn) {
-        if (!userId || userId === 'undefined') return alert('Faça o quiz para poder favoritar imóveis.');
+    async function toggleFavorite(id, btn) {
+        if (!userId || userId === 'undefined') return alert('Faça o quiz para favoritar imóveis.');
+        
+        // Verifica se o botão já está ativo para decidir se Adiciona (POST) ou Remove (DELETE)
+        const isRemoving = btn.classList.contains('active');
+
         try {
-            await fetch('/api/favorites', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: Number(userId), propertyId: id })
-            });
-            btn.classList.toggle('active');
+            if (isRemoving) {
+                await fetch('/api/favorites', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: Number(userId), propertyId: id })
+                });
+                btn.classList.remove('active');
+                btn.style.color = 'var(--text-muted)';
+            } else {
+                await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: Number(userId), propertyId: id })
+                });
+                btn.classList.add('active');
+                btn.style.color = '#ff4757';
+            }
         } catch (err) { console.error(err); }
     }
 
