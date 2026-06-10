@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Habitatt - Escolha seu Lugar</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <h1 onclick="window.location.href='index.html'">Habitatt</h1>
+        <nav>
+            <a href="imoveis.html?view=match" id="navMatch">Meus Matches</a>
+            <a href="imoveis.html?view=all" id="navAll">Todos os Imóveis</a>
+        </nav>
+    </header>
+
+    <main>
+        <h2 id="pageTitle" style="font-size: 32px;">Carregando imóveis...</h2>
+        <div id="propertiesGrid" class="grid"></div>
+    </main>
+
+    <script>
+        const userId = localStorage.getItem('habitatt_userId');
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewMode = urlParams.get('view') || 'all';
+
+        // Proteção de Rota Básica se tentar ver Match sem fazer o quiz
+        if (viewMode === 'match' && !userId) {
+            alert('Por favor, faça o quiz primeiro para calcularmos seus matches!');
+            window.location.href = 'index.html';
+        }
+
+        async function loadPage() {
+            let endpoint = '/api/properties';
+            if (viewMode === 'match') {
+                endpoint = `/api/properties/match/${userId}`;
+                document.getElementById('navMatch').classList.add('active');
+                document.getElementById('pageTitle').innerHTML = `Matches calculados para <span>${localStorage.getItem('habitatt_userName')}</span>:`;
+            } else {
+                document.getElementById('navAll').classList.add('active');
+                document.getElementById('pageTitle').innerText = 'Inventário Global de Imóveis:';
+            }
+
+            try {
+                const res = await fetch(endpoint);
+                const properties = await res.json();
+                renderCards(properties);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderCards(properties) {
+            const grid = document.getElementById('propertiesGrid');
+            grid.innerHTML = '';
+
+            properties.forEach(prop => {
+                const scoreTag = prop.score !== undefined ? `<div class="tag score">⭐ Score: ${prop.score}%</div>` : '';
+                grid.innerHTML += `
+                    <div class="property-card">
+                        <div class="property-content">
+                            <div class="property-tags">
+                                <div class="tag">${prop.vibe.toUpperCase()}</div>
+                                ${scoreTag}
+                            </div>
+                            <h3>${prop.title}</h3>
+                            <p style="color: var(--text-muted); margin-top: 8px;">
+                                ${prop.bedrooms} Quarto(s) • ${prop.accepts_pet ? 'Aceita Pets' : 'Não Aceita Pets'}
+                            </p>
+                            <div class="price">R$ ${Number(prop.price).toFixed(2)}</div>
+                            <div class="card-actions">
+                                <button class="btn-chat" onclick="goToChat(${prop.id})">
+                                    <i class="fa-regular fa-comment"></i> Falar com Locador
+                                </button>
+                                <button class="btn-fav" onclick="favoriteProperty(${prop.id}, this)">
+                                    <i class="fa-solid fa-heart"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function favoriteProperty(id, btn) {
+            if (!userId) return alert('Faça o quiz para poder favoritar imóveis.');
+            try {
+                await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: Number(userId), propertyId: id })
+                });
+                btn.classList.toggle('active');
+            } catch (err) { console.error(err); }
+        }
+
+        function goToChat(propertyId) {
+            if (!userId) return alert('Por favor, responda o quiz antes de iniciar uma negociação.');
+            window.location.href = `chat.html?propertyId=${propertyId}`;
+        }
+
+        window.onload = loadPage;
+    </script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Habitatt - Descubra seu Lar</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1 onclick="window.location.href='index.html'">Habitatt</h1>
+    </header>
+    <main style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div style="text-align: center; margin-bottom: 40px;">
+            <h2 style="font-size: 42px; margin-bottom: 12px;">O imóvel ideal para a sua <span style="color: var(--accent-neon)">vibe</span>.</h2>
+            <p style="color: var(--text-muted)">Responda ao quiz dinâmico e deixe nossa inteligência em nuvem fazer o resto.</p>
+        </div>
+
+        <form id="quizForm" class="card" style="width: 100%; max-width: 480px;">
+            <div class="form-group">
+                <label for="userName">Como podemos te chamar?</label>
+                <input type="text" id="userName" required placeholder="Seu nome">
+            </div>
+            <div class="form-group">
+                <label for="budget">Orçamento Máximo Mensal</label>
+                <input type="number" id="budget" required placeholder="R$ 2000">
+            </div>
+            <div class="form-group">
+                <label for="vibe">Qual o seu estilo de vida atual?</label>
+                <select id="vibe">
+                    <option value="tranquilo">Tranquilo (Residencial / Familiar)</option>
+                    <option value="agitado">Agitado (Centros / Próximo a Baladas)</option>
+                    <option value="estudante">Estudante (Próximo a Universidades)</option>
+                </select>
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 25px;">
+                <input type="checkbox" id="hasPet" style="width: auto; cursor: pointer;">
+                <label id="hasPet" style="margin-bottom: 0; cursor: pointer;">Possuo animais de estimação</label>
+            </div>
+            <button type="submit" class="btn-primary" style="margin-top: 20px;">Gerar Matches Perfeitos</button>
+        </form>
+    </main>
+
+    <script>
+        document.getElementById('quizForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const payload = {
+                name: document.getElementById('userName').value,
+                profile: {
+                    maxBudget: Number(document.getElementById('budget').value),
+                    desiredVibe: document.getElementById('vibe').value,
+                    hasPet: document.getElementById('hasPet').checked,
+                    minBedrooms: 1, minBathrooms: 1, wantsGarage: false, propertyType: "indiferente"
+                }
+            };
+
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const user = await response.json();
+                
+                // Persistência de Estado Moderna (Navegador guarda quem está logado)
+                localStorage.setItem('habitatt_userId', user.id);
+                localStorage.setItem('habitatt_userName', user.name);
+                
+                // Redireciona o usuário para a página de imóveis em modo Match
+                window.location.href = 'imoveis.html?view=match';
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao conectar com o serviço em nuvem.');
+            }
+        });
+    </script>
+</body>
+</html>

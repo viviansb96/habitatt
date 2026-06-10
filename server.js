@@ -182,6 +182,7 @@ class ChatService {
 
 const app = express();
 app.use(express.json());
+app.use(express.static('public'));
 app.use(cors());
 
 // --- ROTA: Submissão do Quiz de Perfil Dinâmico ---

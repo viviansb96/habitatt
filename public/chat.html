@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Habitatt - Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <h1 onclick="window.location.href='index.html'">Habitatt</h1>
+        <nav><a href="imoveis.html?view=match">Voltar aos Imóveis</a></nav>
+    </header>
+
+    <main class="chat-container">
+        <div class="chat-window">
+            <div style="padding: 20px; background: #111; border-bottom: 1px solid var(--border-color)">
+                <h3 style="color: var(--accent-neon)"><i class="fa-solid fa-user-tie"></i> Contato com Locador (ID: 99)</h3>
+            </div>
+            <div id="chatMessages" class="chat-messages">
+                </div>
+            <div class="chat-input-wrapper">
+                <input type="text" id="messageInput" placeholder="Escreva sua mensagem sobre o imóvel...">
+                <button class="btn-primary" style="width: auto;" onclick="sendMessage()">Enviar</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const userId = localStorage.getItem('habitatt_userId');
+        const urlParams = new URLSearchParams(window.location.search);
+        const propertyId = urlParams.get('propertyId');
+        const locadorId = 99; // Simulação padrão do locador do imóvel
+
+        async function loadChatHistory() {
+            try {
+                const res = await fetch(`/api/chat/history?userA=${userId}&userB=${locadorId}`);
+                const history = await res.json();
+                
+                const box = document.getElementById('chatMessages');
+                box.innerHTML = '';
+
+                // Mensagem padrão inicial de boas-vindas do locador se o chat estiver limpo
+                if(history.length === 0) {
+                    box.innerHTML = `<div class="message received">Olá! Sou o locador do imóvel. Gostaria de agendar uma visita?</div>`;
+                    return;
+                }
+
+                history.forEach(msg => {
+                    const isMe = msg.sender_id == userId;
+                    box.innerHTML += `
+                        <div class="message ${isMe ? 'sent' : 'received'}">
+                            ${msg.content}
+                        </div>
+                    `;
+                });
+                box.scrollTop = box.scrollHeight; // Rola o chat para o fim automaticamente
+            } catch (err) { console.error(err); }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            if(!content) return;
+
+            try {
+                await fetch('/api/chat/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderId: Number(userId), receiverId: locadorId, content: content })
+                });
+                input.value = '';
+                loadChatHistory(); // Recarrega o histórico atualizado
+            } catch (err) { console.error(err); }
+        }
+
+        // Atualização automática básica do chat em background a cada 4 segundos
+        window.onload = () => {
+            loadChatHistory();
+            setInterval(loadChatHistory, 4000);
+        };
+    </script>
+</body>
+</html>
