@@ -40,12 +40,13 @@
         </form>
     </main>
 
-    <script>
+<script>
         document.getElementById('quizForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const userNameInput = document.getElementById('userName').value;
             const payload = {
-                name: document.getElementById('userName').value,
+                name: userNameInput,
                 profile: {
                     maxBudget: Number(document.getElementById('budget').value),
                     desiredVibe: document.getElementById('vibe').value,
@@ -60,17 +61,20 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                
                 const user = await response.json();
                 
-                // Persistência de Estado Moderna (Navegador guarda quem está logado)
-                localStorage.setItem('habitatt_userId', user.id);
-                localStorage.setItem('habitatt_userName', user.name);
+                // Salvando o nome direto do input para evitar o erro de 'undefined'
+                localStorage.setItem('habitatt_userName', userNameInput);
                 
-                // Redireciona o usuário para a página de imóveis em modo Match
+                // Salva o ID (se a API não retornar o ID no json, usaremos um ID provisório para teste 1)
+                localStorage.setItem('habitatt_userId', user.id || 1);
+                
+                // Redireciona
                 window.location.href = 'imoveis.html?view=match';
             } catch (err) {
                 console.error(err);
-                alert('Erro ao conectar com o serviço em nuvem.');
+                alert('Erro ao conectar com o servidor. Verifique se a API está rodando.');
             }
         });
     </script>

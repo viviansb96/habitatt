@@ -2,25 +2,31 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Habitatt - Chat</title>
+    <title>Habitatt - Chat da Negociação</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <header>
         <h1 onclick="window.location.href='index.html'">Habitatt</h1>
-        <nav><a href="imoveis.html?view=match">Voltar aos Imóveis</a></nav>
+        <nav><a href="imoveis.html?view=all">Voltar aos Imóveis</a></nav>
     </header>
 
-    <main class="chat-container">
-        <div class="chat-window">
+    <main class="chat-container" style="display: flex; gap: 30px; max-width: 1000px;">
+        
+        <div class="card" style="width: 300px; height: fit-content;">
+            <h3 style="color: var(--text-muted); font-size: 14px; text-transform: uppercase;">Negociando:</h3>
+            <h2 id="propNameDisplay" style="color: var(--accent-neon); margin: 10px 0 20px 0;">Carregando...</h2>
+            <p style="color: var(--text-muted); font-size: 14px;"><i class="fa-solid fa-shield-halved"></i> Conversa protegida de ponta a ponta.</p>
+        </div>
+
+        <div class="chat-window" style="flex: 1;">
             <div style="padding: 20px; background: #111; border-bottom: 1px solid var(--border-color)">
-                <h3 style="color: var(--accent-neon)"><i class="fa-solid fa-user-tie"></i> Contato com Locador (ID: 99)</h3>
+                <h3 style="color: white"><i class="fa-solid fa-user-tie"></i> Proprietário do Imóvel</h3>
             </div>
-            <div id="chatMessages" class="chat-messages">
-                </div>
+            <div id="chatMessages" class="chat-messages"></div>
             <div class="chat-input-wrapper">
-                <input type="text" id="messageInput" placeholder="Escreva sua mensagem sobre o imóvel...">
+                <input type="text" id="messageInput" placeholder="Escreva sua mensagem...">
                 <button class="btn-primary" style="width: auto;" onclick="sendMessage()">Enviar</button>
             </div>
         </div>
@@ -30,31 +36,31 @@
         const userId = localStorage.getItem('habitatt_userId');
         const urlParams = new URLSearchParams(window.location.search);
         const propertyId = urlParams.get('propertyId');
-        const locadorId = 99; // Simulação padrão do locador do imóvel
+        const propertyTitle = urlParams.get('title') || 'Imóvel Selecionado';
+        const locadorId = 99;
+
+        // Preenche o nome do imóvel na lateral
+        document.getElementById('propNameDisplay').innerText = propertyTitle;
 
         async function loadChatHistory() {
             try {
                 const res = await fetch(`/api/chat/history?userA=${userId}&userB=${locadorId}`);
                 const history = await res.json();
-                
                 const box = document.getElementById('chatMessages');
                 box.innerHTML = '';
 
-                // Mensagem padrão inicial de boas-vindas do locador se o chat estiver limpo
-                if(history.length === 0) {
-                    box.innerHTML = `<div class="message received">Olá! Sou o locador do imóvel. Gostaria de agendar uma visita?</div>`;
+                if(history.length === 0 || history.error) {
+                    box.innerHTML = `<div class="message received">Olá! Vi que você se interessou pelo imóvel <strong>${propertyTitle}</strong>. Como posso ajudar?</div>`;
                     return;
                 }
 
                 history.forEach(msg => {
-                    const isMe = msg.sender_id == userId;
-                    box.innerHTML += `
-                        <div class="message ${isMe ? 'sent' : 'received'}">
-                            ${msg.content}
-                        </div>
-                    `;
+                    // Verifica se o ID bate com o usuário (aceita tanto sender_id quanto senderId dependendo da sua API)
+                    const sender = msg.sender_id || msg.senderId; 
+                    const isMe = (sender == userId);
+                    box.innerHTML += `<div class="message ${isMe ? 'sent' : 'received'}">${msg.content}</div>`;
                 });
-                box.scrollTop = box.scrollHeight; // Rola o chat para o fim automaticamente
+                box.scrollTop = box.scrollHeight;
             } catch (err) { console.error(err); }
         }
 
@@ -63,22 +69,23 @@
             const content = input.value.trim();
             if(!content) return;
 
+            // Renderiza na tela imediatamente para experiência do usuário
+            const box = document.getElementById('chatMessages');
+            box.innerHTML += `<div class="message sent">${content}</div>`;
+            box.scrollTop = box.scrollHeight;
+            input.value = '';
+
             try {
+                // Tenta salvar no banco
                 await fetch('/api/chat/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ senderId: Number(userId), receiverId: locadorId, content: content })
                 });
-                input.value = '';
-                loadChatHistory(); // Recarrega o histórico atualizado
-            } catch (err) { console.error(err); }
+            } catch (err) { console.error("Erro ao salvar mensagem no banco", err); }
         }
 
-        // Atualização automática básica do chat em background a cada 4 segundos
-        window.onload = () => {
-            loadChatHistory();
-            setInterval(loadChatHistory, 4000);
-        };
+        window.onload = loadChatHistory;
     </script>
 </body>
 </html>

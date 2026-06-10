@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Habitatt - Meu Perfil</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <h1 onclick="window.location.href='index.html'">Habitatt</h1>
+        <nav><a href="imoveis.html?view=all">Voltar aos Imóveis</a></nav>
+    </header>
+
+    <main style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+        <div class="card" style="width: 100%; max-width: 500px; text-align: center;">
+            <div style="background: #222; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; border: 2px solid var(--accent-neon);">
+                <i class="fa-solid fa-user" style="font-size: 40px; color: var(--accent-neon);"></i>
+            </div>
+            
+            <h2 id="profileName" style="font-size: 28px; margin-bottom: 5px;">Carregando...</h2>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">Locatário Nível 1</p>
+            
+            <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: left;">
+                <p style="margin-bottom: 10px; color: var(--text-muted);"><i class="fa-solid fa-id-badge"></i> ID no Sistema: <strong id="profileId" style="color: white;">...</strong></p>
+                <p style="color: var(--text-muted);"><i class="fa-solid fa-check-circle" style="color: var(--accent-neon);"></i> Perfil e Preferências mapeados ativamente para o Motor de Match.</p>
+            </div>
+
+            <button class="btn-primary" onclick="window.location.href='index.html'" style="background: transparent; border: 1px solid var(--accent-neon); color: var(--accent-neon); margin-bottom: 15px;">
+                <i class="fa-solid fa-pen"></i> Refazer Quiz e Editar Preferências
+            </button>
+            <button class="btn-primary" onclick="logout()" style="background: #ff4757; color: white;">
+                <i class="fa-solid fa-right-from-bracket"></i> Sair / Limpar Perfil
+            </button>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('profileName').innerText = localStorage.getItem('habitatt_userName') || 'Usuário Não Identificado';
+        document.getElementById('profileId').innerText = localStorage.getItem('habitatt_userId') || 'N/A';
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
