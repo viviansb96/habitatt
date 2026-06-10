@@ -187,23 +187,21 @@ app.use(cors());
 
 // --- ROTA: Submissão do Quiz de Perfil Dinâmico ---
 app.post('/api/users', async (req, res) => {
+  try {
     const { name, profile } = req.body;
-    try {
-        const result = await db.query(
-            `INSERT INTO users (name, max_budget, desired_vibe, has_pet, min_bedrooms, min_bathrooms, wants_balcony, wants_garage, wants_yard, property_type) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-            [
-                name, profile.maxBudget, profile.desiredVibe, profile.hasPet, 
-                profile.minBedrooms || 1, profile.minBathrooms || 1, 
-                profile.wantsBalcony || false, profile.wantsGarage || false, 
-                profile.wantsYard || false, profile.propertyType || 'indiferente'
-            ]
-        );
-        res.status(201).json({ message: "Usuário persistido com sucesso.", user: result.rows[0] });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Falha de infraestrutura ao salvar usuário." });
-    }
+    
+    // O RETURNING * é crucial para o PostgreSQL devolver o ID gerado na hora
+    const result = await db.query(
+      "INSERT INTO users (name, profile) VALUES ($1, $2) RETURNING *",
+      [name, JSON.stringify(profile)]
+    );
+    
+    // Retorna explicitamente a primeira linha gerada (o objeto do usuário completo)
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno ao criar usuário." });
+  }
 });
 
 // ---------------------------------------------------------

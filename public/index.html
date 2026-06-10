@@ -41,42 +41,56 @@
     </main>
 
 <script>
-        document.getElementById('quizForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const userNameInput = document.getElementById('userName').value;
-            const payload = {
-                name: userNameInput,
-                profile: {
-                    maxBudget: Number(document.getElementById('budget').value),
-                    desiredVibe: document.getElementById('vibe').value,
-                    hasPet: document.getElementById('hasPet').checked,
-                    minBedrooms: 1, minBathrooms: 1, wantsGarage: false, propertyType: "indiferente"
-                }
-            };
-
-            try {
-                const response = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const user = await response.json();
-                
-                // Salvando o nome direto do input para evitar o erro de 'undefined'
-                localStorage.setItem('habitatt_userName', userNameInput);
-                
-                // Salva o ID (se a API não retornar o ID no json, usaremos um ID provisório para teste 1)
-                localStorage.setItem('habitatt_userId', user.id || 1);
-                
-                // Redireciona
-                window.location.href = 'imoveis.html?view=match';
-            } catch (err) {
-                console.error(err);
-                alert('Erro ao conectar com o servidor. Verifique se a API está rodando.');
+    document.getElementById('quizForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Captura o nome diretamente do campo de texto
+        const inputName = document.getElementById('userName').value.trim();
+        
+        const payload = {
+            name: inputName,
+            profile: {
+                maxBudget: Number(document.getElementById('budget').value),
+                desiredVibe: document.getElementById('vibe').value,
+                hasPet: document.getElementById('hasPet').checked,
+                minBedrooms: 1, 
+                minBathrooms: 1, 
+                wantsGarage: false, 
+                propertyType: "indiferente"
             }
-        });
-    </script>
+        };
+
+        try {
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) throw new Error('Erro na requisição do servidor');
+            
+            const user = await response.json();
+            
+            // Garantia Absoluta: Se o servidor não mandar o ID de forma direta, verifica estruturas alternativas
+            const finalId = user.id || (user.rows && user.rows[0] ? user.rows[0].id : null);
+            
+            if (!finalId) {
+                alert('O servidor criou o usuário mas não retornou um ID válido. Verifique o console.');
+                console.log('Resposta do servidor:', user);
+                return;
+            }
+
+            // Grava de forma limpa e persistente no navegador
+            localStorage.setItem('habitatt_userId', finalId);
+            localStorage.setItem('habitatt_userName', inputName);
+            
+            // Avança para a página de imóveis com o estado do Match ativo
+            window.location.href = 'imoveis.html?view=match';
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao conectar com o serviço em nuvem. Verifique se a API do Render está ativa.');
+        }
+    });
+</script>
 </body>
 </html>

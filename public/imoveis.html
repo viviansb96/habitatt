@@ -21,85 +21,96 @@
         <div id="propertiesGrid" class="grid"></div>
     </main>
 
-    <script>
-        const userId = localStorage.getItem('habitatt_userId');
-        const urlParams = new URLSearchParams(window.location.search);
-        const viewMode = urlParams.get('view') || 'all';
+<script>
+    const userId = localStorage.getItem('habitatt_userId');
+    const userName = localStorage.getItem('habitatt_userName');
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewMode = urlParams.get('view') || 'all';
 
-        if (viewMode === 'match' && !userId) {
-            alert('Por favor, faça o quiz primeiro!');
-            window.location.href = 'index.html';
+    // Se tentar acessar os matches sem ter passado pelo quiz, redireciona
+    if (viewMode === 'match' && (!userId || userId === 'undefined')) {
+        alert('Nenhum perfil encontrado. Responda ao quiz para gerar seus matches!');
+        window.location.href = 'index.html';
+    }
+
+    async function loadPage() {
+        let endpoint = '/api/properties';
+        
+        if (viewMode === 'match') {
+            endpoint = `/api/properties/match/${userId}`;
+            document.getElementById('navMatch').classList.add('active');
+            document.getElementById('pageTitle').innerHTML = `Matches calculados para: <span style="color: var(--accent-neon);">${userName}</span>`;
+        } else {
+            document.getElementById('navAll').classList.add('active');
+            document.getElementById('pageTitle').innerText = 'Imóveis Disponíveis:';
         }
 
-        async function loadPage() {
-            let endpoint = '/api/properties';
-            if (viewMode === 'match') {
-                endpoint = `/api/properties/match/${userId}`;
-                document.getElementById('navMatch').classList.add('active');
-                document.getElementById('pageTitle').innerHTML = `Matches calculados para <span style="color: var(--accent-neon);">${localStorage.getItem('habitatt_userName')}</span>:`;
-            } else {
-                document.getElementById('navAll').classList.add('active');
-                document.getElementById('pageTitle').innerText = 'Imóveis Disponíveis:';
-            }
+        try {
+            const res = await fetch(endpoint);
+            if (!res.ok) throw new Error('Erro ao buscar imóveis');
+            const properties = await res.json();
+            renderCards(properties);
+        } catch (err) {
+            console.error(err);
+            document.getElementById('pageTitle').innerText = 'Erro ao carregar os dados da nuvem.';
+        }
+    }
 
-            try {
-                const res = await fetch(endpoint);
-                const properties = await res.json();
-                renderCards(properties);
-            } catch (err) {
-                console.error(err);
-            }
+    function renderCards(properties) {
+        const grid = document.getElementById('propertiesGrid');
+        grid.innerHTML = '';
+
+        if (!properties || properties.length === 0) {
+            grid.innerHTML = '<p style="color: var(--text-muted); padding: 20px;">Nenhum imóvel encontrado para os critérios selecionados.</p>';
+            return;
         }
 
-        function renderCards(properties) {
-            const grid = document.getElementById('propertiesGrid');
-            grid.innerHTML = '';
+        properties.forEach(prop => {
+            const scoreTag = prop.score !== undefined ? `<div class="tag score">⭐ Score: ${prop.score}%</div>` : '';
+            const urlSafeTitle = encodeURIComponent(prop.title);
 
-            properties.forEach(prop => {
-                const scoreTag = prop.score !== undefined ? `<div class="tag score">⭐ Score: ${prop.score}%</div>` : '';
-                
-                // Passando o título do imóvel pela URL para o chat ler depois
-                const urlSafeTitle = encodeURIComponent(prop.title);
-
-                grid.innerHTML += `
-                    <div class="property-card">
-                        <div style="height: 200px; width: 100%; overflow: hidden; background: #111;">
-                            <img src="images/${prop.id}.jpg" onerror="this.src='https://via.placeholder.com/400x200/222/deff9a?text=Sem+Foto'" style="width: 100%; height: 100%; object-fit: cover;">
+            grid.innerHTML += `
+                <div class="property-card">
+                    <div style="height: 200px; width: 100%; overflow: hidden; background: #111;">
+                        <img src="images/${prop.id}.jpg" onerror="this.src='https://via.placeholder.com/400x200/222/deff9a?text=Habitatt+Imóveis'" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div class="property-content">
+                        <div class="property-tags">
+                            <div class="tag">${prop.vibe.toUpperCase()}</div>
+                            ${scoreTag}
                         </div>
-                        
-                        <div class="property-content">
-                            <div class="property-tags">
-                                <div class="tag">${prop.vibe.toUpperCase()}</div>
-                                ${scoreTag}
-                            </div>
-                            <h3>${prop.title}</h3>
-                            <p style="color: var(--text-muted); margin-top: 8px;">
-                                ${prop.bedrooms} Quarto(s) • ${prop.accepts_pet ? 'Aceita Pets' : 'Não Aceita Pets'}
-                            </p>
-                            <div class="price">R$ ${Number(prop.price).toFixed(2)}</div>
-                            <div class="card-actions">
-                                <button class="btn-chat" onclick="window.location.href='chat.html?propertyId=${prop.id}&title=${urlSafeTitle}'">
-                                    <i class="fa-regular fa-comment"></i> Falar com Locador
-                                </button>
-                                <button class="btn-fav" onclick="favoriteProperty(${prop.id}, this)">
-                                    <i class="fa-solid fa-heart"></i>
-                                </button>
-                            </div>
+                        <h3>${prop.title}</h3>
+                        <p style="color: var(--text-muted); margin-top: 8px;">
+                            ${prop.bedrooms} Quarto(s) • ${prop.accepts_pet ? 'Aceita Pets' : 'Não Aceita Pets'}
+                        </p>
+                        <div class="price">R$ ${Number(prop.price).toFixed(2)}</div>
+                        <div class="card-actions">
+                            <button class="btn-chat" onclick="window.location.href='chat.html?propertyId=${prop.id}&title=${urlSafeTitle}'">
+                                <i class="fa-regular fa-comment"></i> Falar com Locador
+                            </button>
+                            <button class="btn-fav" onclick="favoriteProperty(${prop.id}, this)">
+                                <i class="fa-solid fa-heart"></i>
+                            </button>
                         </div>
                     </div>
-                `;
+                </div>
+            `;
+        });
+    }
+
+    async function favoriteProperty(id, btn) {
+        if (!userId || userId === 'undefined') return alert('Faça o quiz para poder favoritar imóveis.');
+        try {
+            await fetch('/api/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: Number(userId), propertyId: id })
             });
-        }
+            btn.classList.toggle('active');
+        } catch (err) { console.error(err); }
+    }
 
-        async function favoriteProperty(id, btn) {
-            if (!userId) return alert('Faça o quiz para poder favoritar imóveis.');
-            try {
-                await fetch('/api/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: Number(userId), propertyId: id }) });
-                btn.classList.toggle('active');
-            } catch (err) {}
-        }
-
-        window.onload = loadPage;
-    </script>
+    window.onload = loadPage;
+</script>
 </body>
 </html>

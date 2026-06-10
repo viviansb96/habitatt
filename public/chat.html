@@ -32,60 +32,61 @@
         </div>
     </main>
 
-    <script>
-        const userId = localStorage.getItem('habitatt_userId');
-        const urlParams = new URLSearchParams(window.location.search);
-        const propertyId = urlParams.get('propertyId');
-        const propertyTitle = urlParams.get('title') || 'Imóvel Selecionado';
-        const locadorId = 99;
+<script>
+    const userId = localStorage.getItem('habitatt_userId');
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyId = urlParams.get('propertyId');
+    const propertyTitle = urlParams.get('title') || 'Imóvel Selecionado';
+    const locadorId = 99; 
 
-        // Preenche o nome do imóvel na lateral
-        document.getElementById('propNameDisplay').innerText = propertyTitle;
+    document.getElementById('propNameDisplay').innerText = decodeURIComponent(propertyTitle);
 
-        async function loadChatHistory() {
-            try {
-                const res = await fetch(`/api/chat/history?userA=${userId}&userB=${locadorId}`);
-                const history = await res.json();
-                const box = document.getElementById('chatMessages');
-                box.innerHTML = '';
-
-                if(history.length === 0 || history.error) {
-                    box.innerHTML = `<div class="message received">Olá! Vi que você se interessou pelo imóvel <strong>${propertyTitle}</strong>. Como posso ajudar?</div>`;
-                    return;
-                }
-
-                history.forEach(msg => {
-                    // Verifica se o ID bate com o usuário (aceita tanto sender_id quanto senderId dependendo da sua API)
-                    const sender = msg.sender_id || msg.senderId; 
-                    const isMe = (sender == userId);
-                    box.innerHTML += `<div class="message ${isMe ? 'sent' : 'received'}">${msg.content}</div>`;
-                });
-                box.scrollTop = box.scrollHeight;
-            } catch (err) { console.error(err); }
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const content = input.value.trim();
-            if(!content) return;
-
-            // Renderiza na tela imediatamente para experiência do usuário
+    async function loadChatHistory() {
+        if (!userId || userId === 'undefined') return;
+        
+        try {
+            const res = await fetch(`/api/chat/history?userA=${userId}&userB=${locadorId}`);
+            const history = await res.json();
             const box = document.getElementById('chatMessages');
-            box.innerHTML += `<div class="message sent">${content}</div>`;
+            box.innerHTML = '';
+
+            if(!history || history.length === 0 || history.error) {
+                box.innerHTML = `<div class="message received">Olá! Vi que você se interessou pelo imóvel <strong>${decodeURIComponent(propertyTitle)}</strong>. Como posso ajudar?</div>`;
+                return;
+            }
+
+            history.forEach(msg => {
+                const sender = msg.sender_id || msg.senderId; 
+                const isMe = (sender == userId);
+                box.innerHTML += `<div class="message ${isMe ? 'sent' : 'received'}">${msg.content}</div>`;
+            });
             box.scrollTop = box.scrollHeight;
-            input.value = '';
+        } catch (err) { console.error(err); }
+    }
 
-            try {
-                // Tenta salvar no banco
-                await fetch('/api/chat/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderId: Number(userId), receiverId: locadorId, content: content })
-                });
-            } catch (err) { console.error("Erro ao salvar mensagem no banco", err); }
-        }
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const content = input.value.trim();
+        if(!content) return;
 
-        window.onload = loadChatHistory;
-    </script>
+        const box = document.getElementById('chatMessages');
+        box.innerHTML += `<div class="message sent">${content}</div>`;
+        box.scrollTop = box.scrollHeight;
+        input.value = '';
+
+        try {
+            await fetch('/api/chat/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senderId: Number(userId), receiverId: locadorId, content: content })
+            });
+        } catch (err) { console.error(err); }
+    }
+
+    window.onload = () => {
+        loadChatHistory();
+        setInterval(loadChatHistory, 5000); // Polling de atualização a cada 5 segundos
+    };
+</script>
 </body>
 </html>
