@@ -316,26 +316,76 @@ app.get('/api/favorites/:userId', async (req, res) => {
 });
 
 // --- ROTAS: Módulo de Comunicação (Chat Integrado) ---
+// Rota para salvar a mensagem vinculada a um imóvel
 app.post('/api/chat/send', async (req, res) => {
-    const { senderId, receiverId, content } = req.body;
-    try {
-        const message = await ChatService.sendMessage(parseInt(senderId), parseInt(receiverId), content);
-        res.status(201).json({ status: "success", data: message });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Erro interno no processamento do envio da mensagem." });
-    }
+  try {
+    const { senderId, receiverId, propertyId, content } = req.body;
+    await db.query(
+      `INSERT INTO messages (sender_id, receiver_id, property_id, content) 
+       VALUES ($1, $2, $3, $4)`,
+      [senderId, receiverId, propertyId, content]
+    );
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao enviar mensagem" });
+  }
 });
 
+// Rota para buscar o histórico filtrando PELO IMÓVEL
 app.get('/api/chat/history', async (req, res) => {
-    const { userA, userB } = req.query;
-    try {
-        const logs = await ChatService.getConversationHistory(parseInt(userA), parseInt(userB));
-        res.status(200).json(logs);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Erro ao puxar histórico do chat transacional." });
-    }
+  try {
+    const { userA, userB, propertyId } = req.query;
+    const result = await db.query(
+      `SELECT * FROM messages 
+       WHERE property_id = $1 
+       AND ((sender_id = $2 AND receiver_id = $3) OR (sender_id = $3 AND receiver_id = $2))
+       ORDER BY id ASC`,
+      [propertyId, userA, userB]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar histórico" });
+  }
+});
+
+
+// Rota: Buscar imóveis favoritados pelo usuário
+app.get('/api/users/:userId/favorites', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // O JOIN cruza as tabelas: pega os dados do imóvel ONDE ele está na lista de favoritos do usuário
+    const result = await db.query(
+      `SELECT p.* FROM properties p 
+       JOIN favorites f ON p.id = f.property_id 
+       WHERE f.user_id = $1`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar favoritos" });
+  }
+});
+
+// Rota: Buscar imóveis que o usuário tem conversas ativas
+app.get('/api/users/:userId/chats', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // DISTINCT garante que o imóvel só apareça uma vez na lista, mesmo tendo 50 mensagens
+    const result = await db.query(
+      `SELECT DISTINCT p.id, p.title, p.price 
+       FROM properties p 
+       JOIN messages m ON p.id = m.property_id 
+       WHERE m.sender_id = $1 OR m.receiver_id = $1`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao buscar conversas" });
+  }
 });
 
 // ============================================================================

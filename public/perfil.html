@@ -5,6 +5,14 @@
     <title>Habitatt - Meu Perfil</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .profile-layout { display: flex; gap: 40px; align-items: flex-start; max-width: 1200px; margin: 0 auto; }
+        .sidebar { width: 300px; flex-shrink: 0; }
+        .content-area { flex: 1; }
+        .list-card { background: #111; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .list-card h4 { color: white; margin-bottom: 5px; }
+        .list-card p { color: var(--text-muted); font-size: 14px; }
+    </style>
 </head>
 <body>
     <header>
@@ -12,37 +20,104 @@
         <nav><a href="imoveis.html?view=all">Voltar aos Imóveis</a></nav>
     </header>
 
-    <main style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
-        <div class="card" style="width: 100%; max-width: 500px; text-align: center;">
+    <main class="profile-layout">
+        <div class="card sidebar" style="text-align: center;">
             <div style="background: #222; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; border: 2px solid var(--accent-neon);">
                 <i class="fa-solid fa-user" style="font-size: 40px; color: var(--accent-neon);"></i>
             </div>
-            
-            <h2 id="profileName" style="font-size: 28px; margin-bottom: 5px;">Carregando...</h2>
-            <p style="color: var(--text-muted); margin-bottom: 30px;">Locatário Nível 1</p>
-            
-            <div style="background: #111; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: left;">
-                <p style="margin-bottom: 10px; color: var(--text-muted);"><i class="fa-solid fa-id-badge"></i> ID no Sistema: <strong id="profileId" style="color: white;">...</strong></p>
-                <p style="color: var(--text-muted);"><i class="fa-solid fa-check-circle" style="color: var(--accent-neon);"></i> Perfil e Preferências mapeados ativamente para o Motor de Match.</p>
-            </div>
+            <h2 id="profileName" style="font-size: 24px; margin-bottom: 5px;">...</h2>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">ID: <span id="profileId">...</span></p>
 
             <button class="btn-primary" onclick="window.location.href='index.html'" style="background: transparent; border: 1px solid var(--accent-neon); color: var(--accent-neon); margin-bottom: 15px;">
-                <i class="fa-solid fa-pen"></i> Refazer Quiz e Editar Preferências
+                <i class="fa-solid fa-pen"></i> Refazer Quiz
             </button>
             <button class="btn-primary" onclick="logout()" style="background: #ff4757; color: white;">
-                <i class="fa-solid fa-right-from-bracket"></i> Sair / Limpar Perfil
+                Sair
             </button>
+        </div>
+
+        <div class="content-area">
+            
+            <h3 style="color: var(--accent-neon); margin-bottom: 20px; font-size: 24px;"><i class="fa-solid fa-heart"></i> Meus Favoritos</h3>
+            <div id="favoritesList" style="margin-bottom: 50px;">
+                <p style="color: var(--text-muted);">Carregando favoritos...</p>
+            </div>
+
+            <h3 style="color: var(--accent-neon); margin-bottom: 20px; font-size: 24px;"><i class="fa-solid fa-comments"></i> Conversas Ativas</h3>
+            <div id="chatsList">
+                <p style="color: var(--text-muted);">Carregando conversas...</p>
+            </div>
+
         </div>
     </main>
 
     <script>
+        const userId = localStorage.getItem('habitatt_userId');
         document.getElementById('profileName').innerText = localStorage.getItem('habitatt_userName') || 'Usuário Não Identificado';
-        document.getElementById('profileId').innerText = localStorage.getItem('habitatt_userId') || 'N/A';
+        document.getElementById('profileId').innerText = userId || 'N/A';
 
         function logout() {
             localStorage.clear();
             window.location.href = 'index.html';
         }
+
+        async function loadProfileData() {
+            if (!userId || userId === 'undefined') {
+                document.getElementById('favoritesList').innerHTML = '<p>Faça o quiz para ver seus dados.</p>';
+                document.getElementById('chatsList').innerHTML = '<p>Faça o quiz para ver seus dados.</p>';
+                return;
+            }
+
+            // 1. Carregar Favoritos
+            try {
+                const resFav = await fetch(`/api/users/${userId}/favorites`);
+                const favorites = await resFav.json();
+                const favBox = document.getElementById('favoritesList');
+                
+                if (favorites.length === 0) {
+                    favBox.innerHTML = '<p style="color: var(--text-muted);">Nenhum imóvel favoritado ainda.</p>';
+                } else {
+                    favBox.innerHTML = '';
+                    favorites.forEach(prop => {
+                        favBox.innerHTML += `
+                            <div class="list-card">
+                                <div>
+                                    <h4>${prop.title}</h4>
+                                    <p>R$ ${Number(prop.price).toFixed(2)} | Vibe: ${prop.vibe}</p>
+                                </div>
+                                <button class="btn-primary" style="width: auto; padding: 8px 15px;" onclick="window.location.href='chat.html?propertyId=${prop.id}&title=${encodeURIComponent(prop.title)}'">Ver Chat</button>
+                            </div>
+                        `;
+                    });
+                }
+            } catch (err) { console.error("Erro nos favoritos", err); }
+
+            // 2. Carregar Histórico de Conversas
+            try {
+                const resChats = await fetch(`/api/users/${userId}/chats`);
+                const chats = await resChats.json();
+                const chatBox = document.getElementById('chatsList');
+                
+                if (chats.length === 0) {
+                    chatBox.innerHTML = '<p style="color: var(--text-muted);">Você ainda não iniciou nenhuma conversa.</p>';
+                } else {
+                    chatBox.innerHTML = '';
+                    chats.forEach(prop => {
+                        chatBox.innerHTML += `
+                            <div class="list-card">
+                                <div>
+                                    <h4>Negociação: ${prop.title}</h4>
+                                    <p>Imóvel ID: ${prop.id}</p>
+                                </div>
+                                <button class="btn-primary" style="width: auto; padding: 8px 15px; background: transparent; border: 1px solid var(--accent-neon); color: var(--accent-neon);" onclick="window.location.href='chat.html?propertyId=${prop.id}&title=${encodeURIComponent(prop.title)}'">Continuar Conversa</button>
+                            </div>
+                        `;
+                    });
+                }
+            } catch (err) { console.error("Erro nos chats", err); }
+        }
+
+        window.onload = loadProfileData;
     </script>
 </body>
 </html>

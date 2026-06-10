@@ -41,47 +41,53 @@
 
     document.getElementById('propNameDisplay').innerText = decodeURIComponent(propertyTitle);
 
-    async function loadChatHistory() {
-        if (!userId || userId === 'undefined') return;
-        
-        try {
-            const res = await fetch(`/api/chat/history?userA=${userId}&userB=${locadorId}`);
-            const history = await res.json();
+async function loadChatHistory() {
+            if (!userId || userId === 'undefined') return;
+            try {
+                // AGORA ENVIAMOS O PROPERTY ID NA URL
+                const res = await fetch(`/api/chat/history?userA=${userId}&userB=${locadorId}&propertyId=${propertyId}`);
+                const history = await res.json();
+                const box = document.getElementById('chatMessages');
+                box.innerHTML = '';
+
+                if(!history || history.length === 0 || history.error) {
+                    box.innerHTML = `<div class="message received">Olá! Vi que você se interessou pelo imóvel <strong>${decodeURIComponent(propertyTitle)}</strong>. Como posso ajudar?</div>`;
+                    return;
+                }
+
+                history.forEach(msg => {
+                    const sender = msg.sender_id || msg.senderId; 
+                    const isMe = (sender == userId);
+                    box.innerHTML += `<div class="message ${isMe ? 'sent' : 'received'}">${msg.content}</div>`;
+                });
+                box.scrollTop = box.scrollHeight;
+            } catch (err) { console.error(err); }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            if(!content) return;
+
             const box = document.getElementById('chatMessages');
-            box.innerHTML = '';
-
-            if(!history || history.length === 0 || history.error) {
-                box.innerHTML = `<div class="message received">Olá! Vi que você se interessou pelo imóvel <strong>${decodeURIComponent(propertyTitle)}</strong>. Como posso ajudar?</div>`;
-                return;
-            }
-
-            history.forEach(msg => {
-                const sender = msg.sender_id || msg.senderId; 
-                const isMe = (sender == userId);
-                box.innerHTML += `<div class="message ${isMe ? 'sent' : 'received'}">${msg.content}</div>`;
-            });
+            box.innerHTML += `<div class="message sent">${content}</div>`;
             box.scrollTop = box.scrollHeight;
-        } catch (err) { console.error(err); }
-    }
+            input.value = '';
 
-    async function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const content = input.value.trim();
-        if(!content) return;
-
-        const box = document.getElementById('chatMessages');
-        box.innerHTML += `<div class="message sent">${content}</div>`;
-        box.scrollTop = box.scrollHeight;
-        input.value = '';
-
-        try {
-            await fetch('/api/chat/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ senderId: Number(userId), receiverId: locadorId, content: content })
-            });
-        } catch (err) { console.error(err); }
-    }
+            try {
+                // AGORA ENVIAMOS O PROPERTY ID NO CORPO (BODY)
+                await fetch('/api/chat/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        senderId: Number(userId), 
+                        receiverId: locadorId, 
+                        propertyId: Number(propertyId), // Linha Nova!
+                        content: content 
+                    })
+                });
+            } catch (err) { console.error(err); }
+        }
 
     window.onload = () => {
         loadChatHistory();
