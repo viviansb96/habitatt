@@ -188,10 +188,9 @@ app.use(cors());
 // --- ROTA: Submissão do Quiz de Perfil Dinâmico ---
 app.post('/api/users', async (req, res) => {
   try {
-    // 1. Recebe os dados enviados pelo front-end
-    const { name, profile } = req.body;
+    // Adicionado o password no desestruturamento
+    const { name, password, profile } = req.body; 
     
-    // 2. Desempacota os dados do perfil (com valores padrão por segurança)
     const max_budget = profile.maxBudget || 0;
     const desired_vibe = profile.desiredVibe || 'indiferente';
     const has_pet = profile.hasPet || false;
@@ -202,17 +201,15 @@ app.post('/api/users', async (req, res) => {
     const wants_yard = profile.wantsYard || false;
     const property_type = profile.propertyType || 'indiferente';
 
-    // 3. Faz o INSERT mapeando para as colunas exatas do seu banco
-    // O RETURNING * no final é a mágica que devolve o ID para a tela
+    // Adicionado a coluna password e o parâmetro $11 no INSERT
     const result = await db.query(
       `INSERT INTO users 
-      (name, max_budget, desired_vibe, has_pet, min_bedrooms, min_bathrooms, wants_balcony, wants_garage, wants_yard, property_type) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+      (name, password, max_budget, desired_vibe, has_pet, min_bedrooms, min_bathrooms, wants_balcony, wants_garage, wants_yard, property_type) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
       RETURNING *`,
-      [name, max_budget, desired_vibe, has_pet, min_bedrooms, min_bathrooms, wants_balcony, wants_garage, wants_yard, property_type]
+      [name, password, max_budget, desired_vibe, has_pet, min_bedrooms, min_bathrooms, wants_balcony, wants_garage, wants_yard, property_type]
     );
     
-    // 4. Devolve o usuário criado com o ID novo
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error("Erro no banco de dados:", err);
@@ -290,6 +287,38 @@ app.get('/api/properties/match/:userId', async (req, res) => {
         console.error(err);
         res.status(500).json({ error: "Erro crítico no motor de processamento de score." });
     }
+});
+
+// --- ROTA NOVA: Autenticação de Usuário (Login) ---
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { name, password } = req.body;
+
+    // Busca o usuário pelo nome no banco de dados
+    const result = await db.query('SELECT * FROM users WHERE name = $1', [name]);
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Usuário não encontrado." });
+    }
+
+    const user = result.rows[0];
+
+    // Validação simples de senha em texto claro para o protótipo
+    if (user.password !== password) {
+      return res.status(401).json({ error: "Senha incorreta." });
+    }
+
+    // Se tudo estiver certo, devolve o usuário autenticado
+    res.status(200).json({
+      success: true,
+      id: user.id,
+      name: user.name
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno no servidor de autenticação." });
+  }
 });
 
 // --- ROTAS: Sistema de Favoritos ---
